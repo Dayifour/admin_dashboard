@@ -1,50 +1,116 @@
 "use client";
+
+import {
+  addDoc,
+  collection,
+  deleteDoc,
+  doc,
+  onSnapshot,
+  updateDoc,
+} from "firebase/firestore";
 import Image from "next/image";
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
+import { db } from "../api/firebase"; // Remplacez par votre configuration Firebase
 
 const Page = () => {
   const [isOpen, setIsOpen] = useState(false);
+  const [isEditing, setIsEditing] = useState(false);
+  const [currentOrganizationId, setCurrentOrganizationId] = useState<
+    string | null
+  >(null);
+  interface Organization {
+    id: string;
+    name: string;
+    type: string;
+    location: string;
+    registrationDate: string;
+  }
 
-  const toggleModal = () => {
-    setIsOpen(!isOpen);
-  };
-  // Données initiales pour les organisations
-  const initialOrganizations = [
-    {
-      id: 1,
-      name: "Red Cross",
-      type: "ONG",
-      location: "Geneva, Switzerland",
-      registrationDate: "2005-06-15",
-    },
-    {
-      id: 2,
-      name: "TechCorp",
-      type: "Entreprise",
-      location: "San Francisco, USA",
-      registrationDate: "2018-09-22",
-    },
-    {
-      id: 3,
-      name: "Green Future",
-      type: "ONG",
-      location: "Berlin, Germany",
-      registrationDate: "2012-03-10",
-    },
-  ];
-
-  const [organizations, setOrganizations] = useState(initialOrganizations);
+  const [organizations, setOrganizations] = useState<Organization[]>([]);
   const [searchTerm, setSearchTerm] = useState("");
 
-  const handleDelete = (id: number) => {
-    const updatedOrganizations = organizations.filter(
-      (organization) => organization.id !== id
+  // Références pour les champs du formulaire
+  const nameRef = useRef<HTMLInputElement>(null);
+  const typeRef = useRef<HTMLInputElement>(null);
+  const locationRef = useRef<HTMLInputElement>(null);
+  const dateRef = useRef<HTMLInputElement>(null);
+
+  // Récupérer les organisations en temps réel depuis Firestore
+  useEffect(() => {
+    const unsubscribe = onSnapshot(
+      collection(db, "organizations"),
+      (snapshot) => {
+        const fetchedOrganizations = snapshot.docs.map((doc) => {
+          const data = doc.data();
+          return {
+            id: doc.id,
+            name: data.name,
+            type: data.type,
+            location: data.location,
+            registrationDate: data.registrationDate,
+          };
+        });
+        setOrganizations(fetchedOrganizations);
+      }
     );
-    setOrganizations(updatedOrganizations);
+
+    return () => unsubscribe(); // Nettoyage de la souscription
+  }, []);
+
+  // Ouvrir/fermer le modal
+  const toggleModal = () => {
+    setIsOpen(!isOpen);
+    setIsEditing(false); // Réinitialiser l'état d'édition lors de la fermeture
   };
 
+  // Soumettre une organisation (ajout ou modification)
+  const handleSubmitOrganization = async (e: {
+    preventDefault: () => void;
+  }) => {
+    e.preventDefault();
+
+    const organizationData = {
+      name: nameRef.current?.value || "",
+      type: typeRef.current?.value || "",
+      location: locationRef.current?.value || "",
+      registrationDate: dateRef.current?.value || "",
+    };
+
+    if (isEditing && currentOrganizationId) {
+      // Modifier une organisation existante
+      await updateDoc(
+        doc(db, "organizations", currentOrganizationId),
+        organizationData
+      );
+    } else {
+      // Ajouter une nouvelle organisation
+      await addDoc(collection(db, "organizations"), organizationData);
+    }
+
+    toggleModal();
+  };
+
+  // Préparer le formulaire pour l'édition
+  const handleEdit = (organization: any) => {
+    setIsOpen(true);
+    setIsEditing(true);
+    setCurrentOrganizationId(organization.id);
+
+    // Remplir les champs du formulaire
+    if (nameRef.current) nameRef.current.value = organization.name;
+    if (typeRef.current) typeRef.current.value = organization.type;
+    if (locationRef.current) locationRef.current.value = organization.location;
+    if (dateRef.current) dateRef.current.value = organization.registrationDate;
+  };
+
+  // Supprimer une organisation
+  const handleDelete = async (id: string) => {
+    await deleteDoc(doc(db, "organizations", id));
+  };
+
+  // Filtrer les organisations en fonction du terme de recherche
   const filteredOrganizations = organizations.filter(
-    (organization) =>
+    (organization: any) =>
       organization.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
       organization.type.toLowerCase().includes(searchTerm.toLowerCase()) ||
       organization.location.toLowerCase().includes(searchTerm.toLowerCase())
@@ -69,10 +135,6 @@ const Page = () => {
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
           />
-          <button className="bg-black text-white px-4 py-2 rounded-lg shadow-md flex items-center justify-center gap-2 hover:bg-gray-800">
-            <Image src="/file.png" alt="Search" width={20} height={20} />
-            Exporter
-          </button>
         </div>
       </div>
 
@@ -98,7 +160,7 @@ const Page = () => {
             </tr>
           </thead>
           <tbody>
-            {filteredOrganizations.map((organization) => (
+            {filteredOrganizations.map((organization: any) => (
               <tr
                 key={organization.id}
                 className="border-t hover:bg-gray-50 transition-colors"
@@ -116,13 +178,21 @@ const Page = () => {
                   {organization.registrationDate}
                 </td>
                 <td className="py-3 px-4 flex gap-2">
-                  <Image src="/pencil.png" alt="Edit" width={20} height={20} />
+                  <Image
+                    src="/pencil.png"
+                    alt="Edit"
+                    width={20}
+                    height={20}
+                    onClick={() => handleEdit(organization)}
+                    className="cursor-pointer"
+                  />
                   <Image
                     src="/delete.png"
                     alt="Delete"
                     width={20}
                     height={20}
                     onClick={() => handleDelete(organization.id)}
+                    className="cursor-pointer"
                   />
                 </td>
               </tr>
@@ -130,6 +200,7 @@ const Page = () => {
           </tbody>
         </table>
       </div>
+
       {/* Overlay et formulaire modal */}
       {isOpen && (
         <div
@@ -141,13 +212,16 @@ const Page = () => {
             onClick={(e) => e.stopPropagation()}
           >
             <h2 className="text-2xl font-bold text-center mb-4">
-              Ajouter une Enquête
+              {isEditing
+                ? "Modifier une Organisation"
+                : "Ajouter une Organisation"}
             </h2>
-            <form>
+            <form onSubmit={handleSubmitOrganization}>
               <div className="mb-4">
                 <label className="block text-gray-700 mb-2">Nom :</label>
                 <input
                   type="text"
+                  ref={nameRef}
                   placeholder="Entrez un nom"
                   className="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500"
                 />
@@ -156,6 +230,7 @@ const Page = () => {
                 <label className="block text-gray-700 mb-2">Type :</label>
                 <input
                   type="text"
+                  ref={typeRef}
                   placeholder="Type (ONG, Entreprise, ...)"
                   className="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500"
                 />
@@ -166,15 +241,18 @@ const Page = () => {
                 </label>
                 <input
                   type="text"
+                  ref={locationRef}
                   placeholder="Entrez la localisation"
                   className="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500"
                 />
               </div>
               <div className="mb-4">
-                <label className="block text-gray-700 mb-2">Date d'inscription :</label>
+                <label className="block text-gray-700 mb-2">
+                  Date d'inscription :
+                </label>
                 <input
                   type="date"
-                  placeholder="Entrez la date d'inscription"
+                  ref={dateRef}
                   className="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500"
                 />
               </div>
@@ -184,7 +262,7 @@ const Page = () => {
                   type="submit"
                   className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-500"
                 >
-                  Soumettre
+                  {isEditing ? "Modifier" : "Soumettre"}
                 </button>
                 <button
                   type="button"
