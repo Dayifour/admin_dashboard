@@ -1,62 +1,103 @@
 "use client";
+
+import {
+  addDoc,
+  collection,
+  deleteDoc,
+  doc,
+  onSnapshot,
+  updateDoc,
+} from "firebase/firestore";
 import Image from "next/image";
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
+import { db } from "../api/firebase";
 
 const Page = () => {
   const [isOpen, setIsOpen] = useState(false);
+  const [isEditing, setIsEditing] = useState(false); // Nouveau état pour gérer l'édition
+  const [currentSurveyId, setCurrentSurveyId] = useState<string | null>(null);
+
+  interface Survey {
+    id: string;
+    title: string;
+    description: string;
+    startDate: string;
+    endDate: string;
+    status: string;
+  }
+
+  const [surveys, setSurveys] = useState<Survey[]>([]);
+  const [searchTerm, setSearchTerm] = useState("");
+  const titleRef = useRef<HTMLInputElement>(null);
+  const descriptionRef = useRef<HTMLInputElement>(null);
+  const startDateRef = useRef<HTMLInputElement>(null);
+  const endDateRef = useRef<HTMLInputElement>(null);
+
+  // Récupération des données Firestore en temps réel
+  useEffect(() => {
+    const unsubscribe = onSnapshot(collection(db, "surveys"), (snapshot) => {
+      const fetchedSurveys = snapshot.docs.map((doc) => {
+        const data = doc.data();
+        return {
+          id: doc.id,
+          title: data.title,
+          description: data.description,
+          startDate: data.startDate,
+          endDate: data.endDate,
+          status: data.status,
+        };
+      });
+      setSurveys(fetchedSurveys);
+    });
+
+    return () => unsubscribe();
+  }, []);
 
   const toggleModal = () => {
     setIsOpen(!isOpen);
+    setIsEditing(false); // Réinitialiser l'état d'édition à chaque fermeture
   };
-  // Données locales
-  const initialSurveys = [
-    {
-      id: 1,
-      title: "Satisfaction client",
-      description: "Enquête annuelle auprès des clients",
-      startDate: "2024-01-01",
-      endDate: "2024-01-31",
-      status: "Active",
-    },
-    {
-      id: 2,
-      title: "Employee Engagement",
-      description: "Monthly employee feedback survey",
-      startDate: "2024-02-01",
-      endDate: "2024-02-28",
+
+  // Ajout ou modification d'une enquête
+  const handleSubmitSurvey = async (e: { preventDefault: () => void }) => {
+    e.preventDefault();
+
+    const surveyData = {
+      title: titleRef.current ? titleRef.current.value : "",
+      description: descriptionRef.current ? descriptionRef.current.value : "",
+      startDate: startDateRef.current ? startDateRef.current.value : "",
+      endDate: endDateRef.current ? endDateRef.current.value : "",
       status: "Pending",
-    },
-    {
-      id: 3,
-      title: "Product Feedback",
-      description: "Quarterly product feedback survey",
-      startDate: "2024-03-01",
-      endDate: "2024-03-31",
-      status: "Closed",
-    },
-  ];
+    };
 
-  const [surveys, setSurveys] = useState(initialSurveys);
-  const [searchTerm, setSearchTerm] = useState("");
-
-  // Classes dynamiques pour les statuts
-  const getStatusClasses = (status: string): string => {
-    switch (status) {
-      case "Active":
-        return "bg-green-100 text-green-800 px-2 py-1 rounded-lg";
-      case "Pending":
-        return "bg-yellow-100 text-yellow-800 px-2 py-1 rounded-lg";
-      case "Closed":
-        return "bg-red-100 text-red-800 px-2 py-1 rounded-lg";
-      default:
-        return "bg-gray-100 text-gray-800 px-2 py-1 rounded-lg";
+    if (isEditing && currentSurveyId) {
+      // Modifier une enquête existante
+      await updateDoc(doc(db, "surveys", currentSurveyId), surveyData);
+    } else {
+      // Ajouter une nouvelle enquête
+      await addDoc(collection(db, "surveys"), surveyData);
     }
+
+    toggleModal();
   };
 
-  // Gestion de la suppression
-  const handleDelete = (id: number) => {
-    const updatedSurveys = surveys.filter((survey) => survey.id !== id);
-    setSurveys(updatedSurveys);
+  // Préparer le formulaire pour l'édition
+  const handleEdit = (survey: Survey) => {
+    setIsOpen(true);
+    setIsEditing(true);
+    setCurrentSurveyId(survey.id);
+
+    // Remplir les champs du formulaire
+    if (titleRef.current) titleRef.current.value = survey.title;
+    if (descriptionRef.current)
+      descriptionRef.current.value = survey.description;
+    if (startDateRef.current) startDateRef.current.value = survey.startDate;
+    if (endDateRef.current) endDateRef.current.value = survey.endDate;
+  };
+
+  // Suppression d'une enquête
+  const handleDelete = async (id: string) => {
+    await deleteDoc(doc(db, "surveys", id));
   };
 
   // Filtrage basé sur la recherche
@@ -68,7 +109,6 @@ const Page = () => {
     <div className="mx-8 h-full flex justify-center flex-col">
       <h1 className="text-2xl font-semibold mb-6">Gestionnaires d'Enquêtes</h1>
       <div className="flex items-center justify-between mb-6">
-        {/* Bouton Ajouter */}
         <button
           className="bg-blue-500 text-white px-4 py-2 rounded-lg shadow-md hover:bg-blue-600"
           onClick={toggleModal}
@@ -76,7 +116,6 @@ const Page = () => {
           + Ajouter une enquête
         </button>
 
-        {/* Barre de Recherche */}
         <div className="flex items-center gap-2">
           <input
             type="text"
@@ -85,14 +124,9 @@ const Page = () => {
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
           />
-          <button className="bg-black text-white px-4 py-2 rounded-lg shadow-md flex items-center justify-center gap-2 hover:bg-gray-800">
-            <Image src="/file.png" alt="Search" width={20} height={20} />
-            Exporter
-          </button>
         </div>
       </div>
 
-      {/* Table */}
       <div className="overflow-x-auto bg-gray-100 shadow-xl">
         <table className="min-w-full bg-white rounded-lg shadow-md">
           <thead className="bg-gray-100 border-b">
@@ -108,9 +142,6 @@ const Page = () => {
               </th>
               <th className="text-left py-3 px-4 text-sm font-medium text-gray-600">
                 End Date
-              </th>
-              <th className="text-left py-3 px-4 text-sm font-medium text-gray-600">
-                Status
               </th>
               <th className="text-left py-3 px-4 text-sm font-medium text-gray-600">
                 Actions
@@ -135,19 +166,22 @@ const Page = () => {
                 <td className="py-3 px-4 text-gray-800 text-sm">
                   {survey.endDate}
                 </td>
-                <td className="py-3 px-4">
-                  <span className={getStatusClasses(survey.status)}>
-                    {survey.status}
-                  </span>
-                </td>
                 <td className="py-3 px-4 flex gap-2">
-                  <Image src="/pencil.png" alt="Edit" width={20} height={20} />
                   <Image
-                    src="/delete.png"
+                    src="/pencil.png"
                     alt="Edit"
                     width={20}
                     height={20}
+                    onClick={() => handleEdit(survey)}
+                    className="cursor-pointer"
+                  />
+                  <Image
+                    src="/delete.png"
+                    alt="Delete"
+                    width={20}
+                    height={20}
                     onClick={() => handleDelete(survey.id)}
+                    className="cursor-pointer"
                   />
                 </td>
               </tr>
@@ -155,7 +189,7 @@ const Page = () => {
           </tbody>
         </table>
       </div>
-      {/* Overlay et formulaire modal */}
+
       {isOpen && (
         <div
           className="fixed inset-0 bg-black bg-opacity-50 flex justify-center items-center z-50"
@@ -166,14 +200,15 @@ const Page = () => {
             onClick={(e) => e.stopPropagation()}
           >
             <h2 className="text-2xl font-bold text-center mb-4">
-              Ajouter une Enquête
+              {isEditing ? "Modifier l'Enquête" : "Ajouter une Enquête"}
             </h2>
-            <form>
+            <form onSubmit={handleSubmitSurvey}>
               <div className="mb-4">
                 <label className="block text-gray-700 mb-2">Titre :</label>
                 <input
                   type="text"
                   placeholder="Entrez un titre"
+                  ref={titleRef}
                   className="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500"
                 />
               </div>
@@ -184,16 +219,17 @@ const Page = () => {
                 <input
                   type="text"
                   placeholder="Entrez une description"
+                  ref={descriptionRef}
                   className="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500"
                 />
               </div>
               <div className="mb-4">
                 <label className="block text-gray-700 mb-2">
-                  Date de Debut :
+                  Date de Début :
                 </label>
                 <input
                   type="date"
-                  placeholder="Entrez une date de début"
+                  ref={startDateRef}
                   className="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500"
                 />
               </div>
@@ -203,17 +239,16 @@ const Page = () => {
                 </label>
                 <input
                   type="date"
-                  placeholder="Entrez une date de fin"
+                  ref={endDateRef}
                   className="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500"
                 />
               </div>
-
               <div className="flex justify-between">
                 <button
                   type="submit"
                   className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-500"
                 >
-                  Soumettre
+                  {isEditing ? "Modifier" : "Soumettre"}
                 </button>
                 <button
                   type="button"

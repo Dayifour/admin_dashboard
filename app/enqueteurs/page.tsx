@@ -1,64 +1,116 @@
 "use client";
+
+import {
+  addDoc,
+  collection,
+  deleteDoc,
+  doc,
+  onSnapshot,
+  updateDoc,
+} from "firebase/firestore";
 import Image from "next/image";
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
+import { db } from "../api/firebase"; // Remplacez par le chemin de votre configuration Firebase
 
 const Page = () => {
   const [isOpen, setIsOpen] = useState(false);
+  const [isEditing, setIsEditing] = useState(false); // Pour différencier ajout/édition
+  const [currentInvestigatorId, setCurrentInvestigatorId] = useState<
+    string | null
+  >(null);
+  interface Investigator {
+    id: string;
+    name: string;
+    email: string;
+    location: string;
+    completed: number;
+    active: number;
+  }
 
-  const toggleModal = () => {
-    setIsOpen(!isOpen);
-  };
-  // Données initiales correspondant à celles de l'image
-  const initialInvestigators = [
-    {
-      id: 1,
-      name: "Alice",
-      email: "alice@example.com",
-      location: "Paris, France",
-      completed: 25,
-      active: 3,
-      photo: null, // Pas de photo pour le moment
-    },
-    {
-      id: 2,
-      name: "Bob",
-      email: "bob@example.com",
-      location: "Lyon, France",
-      completed: 12,
-      active: 2,
-      photo: null,
-    },
-    {
-      id: 3,
-      name: "Charlie",
-      email: "charlie@example.com",
-      location: "Marseille, France",
-      completed: 8,
-      active: 1,
-      photo: null,
-    },
-    {
-      id: 4,
-      name: "Issa",
-      email: "issa@gmail.com",
-      location: "Segou",
-      completed: 0,
-      active: 0,
-      photo: null,
-    },
-  ];
-
-  const [investigators, setInvestigators] = useState(initialInvestigators);
+  const [investigators, setInvestigators] = useState<Investigator[]>([]);
   const [searchTerm, setSearchTerm] = useState("");
 
-  const handleDelete = (id: number) => {
-    const updatedInvestigators = investigators.filter(
-      (investigator) => investigator.id !== id
+  // Références pour les champs du formulaire
+  const nameRef = useRef<HTMLInputElement>(null);
+  const emailRef = useRef<HTMLInputElement>(null);
+  const locationRef = useRef<HTMLInputElement>(null);
+
+  // Récupérer les enquêteurs en temps réel depuis Firestore
+  useEffect(() => {
+    const unsubscribe = onSnapshot(
+      collection(db, "investigators"),
+      (snapshot) => {
+        const fetchedInvestigators = snapshot.docs.map((doc) => {
+          const data = doc.data();
+          return {
+            id: doc.id,
+            name: data.name,
+            email: data.email,
+            location: data.location,
+            completed: data.completed,
+            active: data.active,
+          };
+        });
+        setInvestigators(fetchedInvestigators);
+      }
     );
-    setInvestigators(updatedInvestigators);
+
+    return () => unsubscribe(); // Nettoyage de la souscription
+  }, []);
+
+  // Ouvrir/fermer le modal
+  const toggleModal = () => {
+    setIsOpen(!isOpen);
+    setIsEditing(false); // Réinitialiser l'état d'édition lors de la fermeture
   };
 
-  const filteredInvestigators = investigators.filter((investigator) =>
+  // Soumettre un enquêteur (ajout ou modification)
+  const handleSubmitInvestigator = async (e: {
+    preventDefault: () => void;
+  }) => {
+    e.preventDefault();
+
+    const investigatorData = {
+      name: nameRef.current?.value || "",
+      email: emailRef.current?.value || "",
+      location: locationRef.current?.value || "",
+      completed: 0, // Par défaut
+      active: 0, // Par défaut
+    };
+
+    if (isEditing && currentInvestigatorId) {
+      // Modifier un enquêteur existant
+      await updateDoc(
+        doc(db, "investigators", currentInvestigatorId),
+        investigatorData
+      );
+    } else {
+      // Ajouter un nouvel enquêteur
+      await addDoc(collection(db, "investigators"), investigatorData);
+    }
+
+    toggleModal();
+  };
+
+  // Préparer le formulaire pour l'édition
+  const handleEdit = (investigator: any) => {
+    setIsOpen(true);
+    setIsEditing(true);
+    setCurrentInvestigatorId(investigator.id);
+
+    // Remplir les champs du formulaire
+    if (nameRef.current) nameRef.current.value = investigator.name;
+    if (emailRef.current) emailRef.current.value = investigator.email;
+    if (locationRef.current) locationRef.current.value = investigator.location;
+  };
+
+  // Supprimer un enquêteur
+  const handleDelete = async (id: string) => {
+    await deleteDoc(doc(db, "investigators", id));
+  };
+
+  // Filtrer les enquêteurs en fonction du terme de recherche
+  const filteredInvestigators = investigators.filter((investigator: any) =>
     investigator.name.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
@@ -81,10 +133,6 @@ const Page = () => {
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
           />
-          <button className="bg-black text-white px-4 py-2 rounded-lg shadow-md flex items-center justify-center gap-2 hover:bg-gray-800">
-            <Image src="/file.png" alt="Search" width={20} height={20} />
-            Exporter
-          </button>
         </div>
       </div>
 
@@ -92,9 +140,6 @@ const Page = () => {
         <table className="min-w-full bg-white rounded-lg shadow-md">
           <thead className="bg-gray-100 border-b">
             <tr>
-              <th className="text-left py-3 px-4 text-sm font-medium text-gray-600">
-                Photo
-              </th>
               <th className="text-left py-3 px-4 text-sm font-medium text-gray-600">
                 Nom
               </th>
@@ -105,38 +150,16 @@ const Page = () => {
                 Localisation
               </th>
               <th className="text-left py-3 px-4 text-sm font-medium text-gray-600">
-                Complétés
-              </th>
-              <th className="text-left py-3 px-4 text-sm font-medium text-gray-600">
-                Actifs
-              </th>
-              <th className="text-left py-3 px-4 text-sm font-medium text-gray-600">
                 Actions
               </th>
             </tr>
           </thead>
           <tbody>
-            {filteredInvestigators.map((investigator) => (
+            {filteredInvestigators.map((investigator: any) => (
               <tr
                 key={investigator.id}
                 className="border-t hover:bg-gray-50 transition-colors"
               >
-                {/* Photo ou icône utilisateur */}
-                <td className="py-3 px-4">
-                  {investigator.photo ? (
-                    <Image
-                      src={investigator.photo}
-                      alt={investigator.name}
-                      width={40}
-                      height={40}
-                      className="rounded-full"
-                    />
-                  ) : (
-                    <div className="w-10 h-10 rounded-full bg-gray-300 flex items-center justify-center">
-                      <span className="text-gray-500 text-lg">👤</span>
-                    </div>
-                  )}
-                </td>
                 <td className="py-3 px-4 text-gray-800 text-sm">
                   {investigator.name}
                 </td>
@@ -146,20 +169,22 @@ const Page = () => {
                 <td className="py-3 px-4 text-gray-800 text-sm">
                   {investigator.location}
                 </td>
-                <td className="py-3 px-4 text-gray-800 text-sm">
-                  {investigator.completed}
-                </td>
-                <td className="py-3 px-4 text-gray-800 text-sm">
-                  {investigator.active}
-                </td>
                 <td className="py-3 px-4 flex gap-2">
-                  <Image src="/pencil.png" alt="Edit" width={20} height={20} />
+                  <Image
+                    src="/pencil.png"
+                    alt="Edit"
+                    width={20}
+                    height={20}
+                    onClick={() => handleEdit(investigator)}
+                    className="cursor-pointer"
+                  />
                   <Image
                     src="/delete.png"
                     alt="Delete"
                     width={20}
                     height={20}
                     onClick={() => handleDelete(investigator.id)}
+                    className="cursor-pointer"
                   />
                 </td>
               </tr>
@@ -167,7 +192,7 @@ const Page = () => {
           </tbody>
         </table>
       </div>
-      {/* Overlay et formulaire modal */}
+
       {isOpen && (
         <div
           className="fixed inset-0 bg-black bg-opacity-50 flex justify-center items-center z-50"
@@ -178,22 +203,24 @@ const Page = () => {
             onClick={(e) => e.stopPropagation()}
           >
             <h2 className="text-2xl font-bold text-center mb-4">
-              Ajouter une Enquête
+              {isEditing ? "Modifier un Enquêteur" : "Ajouter un Enquêteur"}
             </h2>
-            <form>
+            <form onSubmit={handleSubmitInvestigator}>
               <div className="mb-4">
-                <label className="block text-gray-700 mb-2">Titre :</label>
+                <label className="block text-gray-700 mb-2">Nom :</label>
                 <input
                   type="text"
-                  placeholder="Entrez un titre"
+                  placeholder="Entrez un nom"
+                  ref={nameRef}
                   className="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500"
                 />
               </div>
               <div className="mb-4">
-                <label className="block text-gray-700 mb-2">email :</label>
+                <label className="block text-gray-700 mb-2">Email :</label>
                 <input
                   type="email"
-                  placeholder="Entre un email"
+                  placeholder="Entrez un email"
+                  ref={emailRef}
                   className="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500"
                 />
               </div>
@@ -203,17 +230,17 @@ const Page = () => {
                 </label>
                 <input
                   type="text"
-                  placeholder="Entrez la localisation"
+                  placeholder="Entrez une localisation"
+                  ref={locationRef}
                   className="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500"
                 />
               </div>
-
               <div className="flex justify-between">
                 <button
                   type="submit"
                   className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-500"
                 >
-                  Soumettre
+                  {isEditing ? "Modifier" : "Soumettre"}
                 </button>
                 <button
                   type="button"
