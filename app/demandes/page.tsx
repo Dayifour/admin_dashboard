@@ -66,7 +66,6 @@ const AdminApplications = () => {
 
         if (investigatorDoc.exists()) {
           const currentData = investigatorDoc.data();
-          const currentCompleted = currentData.completed || 0;
           const currentActive = currentData.active || 0;
 
           if (decision === "Accepted") {
