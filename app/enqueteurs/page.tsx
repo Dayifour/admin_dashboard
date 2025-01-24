@@ -18,11 +18,13 @@ const Page = () => {
   const [currentInvestigatorId, setCurrentInvestigatorId] = useState<
     string | null
   >(null);
+
   interface Investigator {
     id: string;
     name: string;
     email: string;
     location: string;
+    phone: number | null;
     completed: number;
     active: number;
   }
@@ -34,6 +36,7 @@ const Page = () => {
   const nameRef = useRef<HTMLInputElement>(null);
   const emailRef = useRef<HTMLInputElement>(null);
   const locationRef = useRef<HTMLInputElement>(null);
+  const phoneRef = useRef<HTMLInputElement>(null);
 
   // Récupérer les enquêteurs en temps réel depuis Firestore
   useEffect(() => {
@@ -47,6 +50,7 @@ const Page = () => {
             name: data.name,
             email: data.email,
             location: data.location,
+            phone: data.phone,
             completed: data.completed,
             active: data.active,
           };
@@ -74,6 +78,7 @@ const Page = () => {
       name: nameRef.current?.value || "",
       email: emailRef.current?.value || "",
       location: locationRef.current?.value || "",
+      phone: parseInt(phoneRef.current?.value || "0"),
       completed: 0, // Par défaut
       active: 0, // Par défaut
     };
@@ -93,7 +98,7 @@ const Page = () => {
   };
 
   // Préparer le formulaire pour l'édition
-  const handleEdit = (investigator: any) => {
+  const handleEdit = (investigator: Investigator) => {
     setIsOpen(true);
     setIsEditing(true);
     setCurrentInvestigatorId(investigator.id);
@@ -102,6 +107,8 @@ const Page = () => {
     if (nameRef.current) nameRef.current.value = investigator.name;
     if (emailRef.current) emailRef.current.value = investigator.email;
     if (locationRef.current) locationRef.current.value = investigator.location;
+    if (phoneRef.current)
+      phoneRef.current.value = investigator.phone ? investigator.phone.toString() : "";
   };
 
   // Supprimer un enquêteur
@@ -110,8 +117,10 @@ const Page = () => {
   };
 
   // Filtrer les enquêteurs en fonction du terme de recherche
-  const filteredInvestigators = investigators.filter((investigator: any) =>
-    investigator.name.toLowerCase().includes(searchTerm.toLowerCase())
+  const filteredInvestigators = investigators.filter(
+    (investigator: any) =>
+      investigator.name &&
+      investigator.name.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
   return (
@@ -150,12 +159,22 @@ const Page = () => {
                 Localisation
               </th>
               <th className="text-left py-3 px-4 text-sm font-medium text-gray-600">
+                Tel
+              </th>
+
+              <th className="text-left py-3 px-4 text-sm font-medium text-gray-600">
+                Completed
+              </th>
+              <th className="text-left py-3 px-4 text-sm font-medium text-gray-600">
+                Active
+              </th>
+              <th className="text-left py-3 px-4 text-sm font-medium text-gray-600">
                 Actions
               </th>
             </tr>
           </thead>
           <tbody>
-            {filteredInvestigators.map((investigator: any) => (
+            {filteredInvestigators.map((investigator) => (
               <tr
                 key={investigator.id}
                 className="border-t hover:bg-gray-50 transition-colors"
@@ -168,6 +187,15 @@ const Page = () => {
                 </td>
                 <td className="py-3 px-4 text-gray-800 text-sm">
                   {investigator.location}
+                </td>
+                <td className="py-3 px-4 text-gray-800 text-sm">
+                  {investigator.phone}
+                </td>
+                <td className="py-3 px-4 text-gray-800 text-sm">
+                  {investigator.completed}
+                </td>
+                <td className="py-3 px-4 text-gray-800 text-sm">
+                  {investigator.active}
                 </td>
                 <td className="py-3 px-4 flex gap-2">
                   <Image
@@ -232,6 +260,15 @@ const Page = () => {
                   type="text"
                   placeholder="Entrez une localisation"
                   ref={locationRef}
+                  className="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500"
+                />
+              </div>
+              <div className="mb-4">
+                <label className="block text-gray-700 mb-2">Phone :</label>
+                <input
+                  type="number"
+                  placeholder="Entrez une localisation"
+                  ref={phoneRef}
                   className="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500"
                 />
               </div>
