@@ -14,7 +14,7 @@ import { db } from "../api/firebase";
 
 const Page = () => {
   const [isOpen, setIsOpen] = useState(false);
-  const [isEditing, setIsEditing] = useState(false); // Nouveau état pour gérer l'édition
+  const [isEditing, setIsEditing] = useState(false);
   const [currentSurveyId, setCurrentSurveyId] = useState<string | null>(null);
 
   interface Survey {
@@ -23,7 +23,7 @@ const Page = () => {
     description: string;
     startDate: string;
     endDate: string;
-    status: string;
+    status: "Pending" | "Active" | "Completed"; // Statuts définis
   }
 
   const [surveys, setSurveys] = useState<Survey[]>([]);
@@ -33,20 +33,13 @@ const Page = () => {
   const startDateRef = useRef<HTMLInputElement>(null);
   const endDateRef = useRef<HTMLInputElement>(null);
 
-  // Récupération des données Firestore en temps réel
+  // Fetch data in real-time from Firestore
   useEffect(() => {
     const unsubscribe = onSnapshot(collection(db, "surveys"), (snapshot) => {
-      const fetchedSurveys = snapshot.docs.map((doc) => {
-        const data = doc.data();
-        return {
-          id: doc.id,
-          title: data.title,
-          description: data.description,
-          startDate: data.startDate,
-          endDate: data.endDate,
-          status: data.status,
-        };
-      });
+      const fetchedSurveys = snapshot.docs.map((doc) => ({
+        id: doc.id,
+        ...doc.data(),
+      })) as Survey[];
       setSurveys(fetchedSurveys);
     });
 
@@ -54,40 +47,49 @@ const Page = () => {
   }, []);
 
   const toggleModal = () => {
-    setIsOpen(!isOpen);
-    setIsEditing(false); // Réinitialiser l'état d'édition à chaque fermeture
+    setIsOpen((prev) => !prev);
+    setIsEditing(false);
+    setCurrentSurveyId(null);
+    resetForm();
   };
 
-  // Ajout ou modification d'une enquête
-  const handleSubmitSurvey = async (e: { preventDefault: () => void }) => {
+  const resetForm = () => {
+    if (titleRef.current) titleRef.current.value = "";
+    if (descriptionRef.current) descriptionRef.current.value = "";
+    if (startDateRef.current) startDateRef.current.value = "";
+    if (endDateRef.current) endDateRef.current.value = "";
+  };
+
+  // Add or update a survey
+  const handleSubmitSurvey = async (e: React.FormEvent) => {
     e.preventDefault();
 
     const surveyData = {
-      title: titleRef.current ? titleRef.current.value : "",
-      description: descriptionRef.current ? descriptionRef.current.value : "",
-      startDate: startDateRef.current ? startDateRef.current.value : "",
-      endDate: endDateRef.current ? endDateRef.current.value : "",
+      title: titleRef.current?.value || "",
+      description: descriptionRef.current?.value || "",
+      startDate: startDateRef.current?.value || "",
+      endDate: endDateRef.current?.value || "",
       status: "Pending",
     };
 
-    if (isEditing && currentSurveyId) {
-      // Modifier une enquête existante
-      await updateDoc(doc(db, "surveys", currentSurveyId), surveyData);
-    } else {
-      // Ajouter une nouvelle enquête
-      await addDoc(collection(db, "surveys"), surveyData);
+    try {
+      if (isEditing && currentSurveyId) {
+        await updateDoc(doc(db, "surveys", currentSurveyId), surveyData);
+      } else {
+        await addDoc(collection(db, "surveys"), surveyData);
+      }
+      toggleModal();
+    } catch (error) {
+      console.error("Error submitting survey:", error);
     }
-
-    toggleModal();
   };
 
-  // Préparer le formulaire pour l'édition
   const handleEdit = (survey: Survey) => {
     setIsOpen(true);
     setIsEditing(true);
     setCurrentSurveyId(survey.id);
 
-    // Remplir les champs du formulaire
+    // Pre-fill the form fields
     if (titleRef.current) titleRef.current.value = survey.title;
     if (descriptionRef.current)
       descriptionRef.current.value = survey.description;
@@ -95,18 +97,31 @@ const Page = () => {
     if (endDateRef.current) endDateRef.current.value = survey.endDate;
   };
 
-  // Suppression d'une enquête
   const handleDelete = async (id: string) => {
-    await deleteDoc(doc(db, "surveys", id));
+    try {
+      await deleteDoc(doc(db, "surveys", id));
+    } catch (error) {
+      console.error("Error deleting survey:", error);
+    }
   };
 
-  // Filtrage basé sur la recherche
+  const handleStatusChange = async (
+    id: string,
+    newStatus: "Pending" | "Active" | "Completed"
+  ) => {
+    try {
+      await updateDoc(doc(db, "surveys", id), { status: newStatus });
+    } catch (error) {
+      console.error("Error updating survey status:", error);
+    }
+  };
+
   const filteredSurveys = surveys.filter((survey) =>
     survey.title.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
   return (
-    <div className="mx-8 h-full flex justify-center flex-col">
+    <div className="mx-8 h-full flex flex-col justify-center">
       <h1 className="text-2xl font-semibold mb-6">Gestionnaires d'Enquêtes</h1>
       <div className="flex items-center justify-between mb-6">
         <button
@@ -115,37 +130,34 @@ const Page = () => {
         >
           + Ajouter une enquête
         </button>
-
-        <div className="flex items-center gap-2">
-          <input
-            type="text"
-            placeholder="Chercher une enquête..."
-            className="border border-gray-300 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-          />
-        </div>
+        <input
+          type="text"
+          placeholder="Chercher une enquête..."
+          className="border border-gray-300 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+          value={searchTerm}
+          onChange={(e) => setSearchTerm(e.target.value)}
+        />
       </div>
 
       <div className="overflow-x-auto bg-gray-100 shadow-xl">
         <table className="min-w-full bg-white rounded-lg shadow-md">
           <thead className="bg-gray-100 border-b">
             <tr>
-              <th className="text-left py-3 px-4 text-sm font-medium text-gray-600">
-                Title
-              </th>
-              <th className="text-left py-3 px-4 text-sm font-medium text-gray-600">
-                Description
-              </th>
-              <th className="text-left py-3 px-4 text-sm font-medium text-gray-600">
-                Start Date
-              </th>
-              <th className="text-left py-3 px-4 text-sm font-medium text-gray-600">
-                End Date
-              </th>
-              <th className="text-left py-3 px-4 text-sm font-medium text-gray-600">
-                Actions
-              </th>
+              {[
+                "Title",
+                "Description",
+                "Start Date",
+                "End Date",
+                "Status",
+                "Actions",
+              ].map((header) => (
+                <th
+                  key={header}
+                  className="text-left py-3 px-4 text-sm font-medium text-gray-600"
+                >
+                  {header}
+                </th>
+              ))}
             </tr>
           </thead>
           <tbody>
@@ -166,7 +178,22 @@ const Page = () => {
                 <td className="py-3 px-4 text-gray-800 text-sm">
                   {survey.endDate}
                 </td>
+                <td className="py-3 px-4 text-gray-800 text-sm">
+                  {survey.status}
+                </td>
                 <td className="py-3 px-4 flex gap-2">
+                  <button
+                    onClick={() => handleStatusChange(survey.id, "Active")}
+                    className="text-green-500 hover:underline"
+                  >
+                    Activer
+                  </button>
+                  <button
+                    onClick={() => handleStatusChange(survey.id, "Completed")}
+                    className="text-blue-500 hover:underline"
+                  >
+                    Compléter
+                  </button>
                   <Image
                     src="/pencil.png"
                     alt="Edit"
@@ -203,46 +230,21 @@ const Page = () => {
               {isEditing ? "Modifier l'Enquête" : "Ajouter une Enquête"}
             </h2>
             <form onSubmit={handleSubmitSurvey}>
-              <div className="mb-4">
-                <label className="block text-gray-700 mb-2">Titre :</label>
-                <input
-                  type="text"
-                  placeholder="Entrez un titre"
-                  ref={titleRef}
-                  className="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500"
-                />
-              </div>
-              <div className="mb-4">
-                <label className="block text-gray-700 mb-2">
-                  Description :
-                </label>
-                <input
-                  type="text"
-                  placeholder="Entrez une description"
-                  ref={descriptionRef}
-                  className="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500"
-                />
-              </div>
-              <div className="mb-4">
-                <label className="block text-gray-700 mb-2">
-                  Date de Début :
-                </label>
-                <input
-                  type="date"
-                  ref={startDateRef}
-                  className="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500"
-                />
-              </div>
-              <div className="mb-4">
-                <label className="block text-gray-700 mb-2">
-                  Date de Fin :
-                </label>
-                <input
-                  type="date"
-                  ref={endDateRef}
-                  className="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500"
-                />
-              </div>
+              {[
+                { label: "Titre", ref: titleRef, type: "text" },
+                { label: "Description", ref: descriptionRef, type: "text" },
+                { label: "Date de Début", ref: startDateRef, type: "date" },
+                { label: "Date de Fin", ref: endDateRef, type: "date" },
+              ].map(({ label, ref, type }) => (
+                <div className="mb-4" key={label}>
+                  <label className="block text-gray-700 mb-2">{label} :</label>
+                  <input
+                    type={type}
+                    ref={ref}
+                    className="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500"
+                  />
+                </div>
+              ))}
               <div className="flex justify-between">
                 <button
                   type="submit"

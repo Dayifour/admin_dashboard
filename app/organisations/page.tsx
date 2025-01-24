@@ -18,6 +18,8 @@ const Page = () => {
   const [currentOrganizationId, setCurrentOrganizationId] = useState<
     string | null
   >(null);
+
+  // Interface Organization
   interface Organization {
     id: string;
     name: string;
@@ -48,7 +50,7 @@ const Page = () => {
             type: data.type,
             location: data.location,
             registrationDate: data.registrationDate,
-          };
+          } as Organization;
         });
         setOrganizations(fetchedOrganizations);
       }
@@ -64,9 +66,7 @@ const Page = () => {
   };
 
   // Soumettre une organisation (ajout ou modification)
-  const handleSubmitOrganization = async (e: {
-    preventDefault: () => void;
-  }) => {
+  const handleSubmitOrganization = async (e: React.FormEvent) => {
     e.preventDefault();
 
     const organizationData = {
@@ -91,7 +91,7 @@ const Page = () => {
   };
 
   // Préparer le formulaire pour l'édition
-  const handleEdit = (organization: any) => {
+  const handleEdit = (organization: Organization) => {
     setIsOpen(true);
     setIsEditing(true);
     setCurrentOrganizationId(organization.id);
@@ -110,7 +110,7 @@ const Page = () => {
 
   // Filtrer les organisations en fonction du terme de recherche
   const filteredOrganizations = organizations.filter(
-    (organization: any) =>
+    (organization) =>
       organization.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
       organization.type.toLowerCase().includes(searchTerm.toLowerCase()) ||
       organization.location.toLowerCase().includes(searchTerm.toLowerCase())
@@ -160,7 +160,7 @@ const Page = () => {
             </tr>
           </thead>
           <tbody>
-            {filteredOrganizations.map((organization: any) => (
+            {filteredOrganizations.map((organization) => (
               <tr
                 key={organization.id}
                 className="border-t hover:bg-gray-50 transition-colors"

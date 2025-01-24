@@ -18,6 +18,7 @@ const Page = () => {
   const [currentInvestigatorId, setCurrentInvestigatorId] = useState<
     string | null
   >(null);
+
   interface Investigator {
     id: string;
     name: string;
@@ -65,9 +66,7 @@ const Page = () => {
   };
 
   // Soumettre un enquêteur (ajout ou modification)
-  const handleSubmitInvestigator = async (e: {
-    preventDefault: () => void;
-  }) => {
+  const handleSubmitInvestigator = async (e: { preventDefault: () => void }) => {
     e.preventDefault();
 
     const investigatorData = {
@@ -93,7 +92,7 @@ const Page = () => {
   };
 
   // Préparer le formulaire pour l'édition
-  const handleEdit = (investigator: any) => {
+  const handleEdit = (investigator: Investigator) => {
     setIsOpen(true);
     setIsEditing(true);
     setCurrentInvestigatorId(investigator.id);
@@ -155,7 +154,7 @@ const Page = () => {
             </tr>
           </thead>
           <tbody>
-            {filteredInvestigators.map((investigator: any) => (
+            {filteredInvestigators.map((investigator) => (
               <tr
                 key={investigator.id}
                 className="border-t hover:bg-gray-50 transition-colors"
