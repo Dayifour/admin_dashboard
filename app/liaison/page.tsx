@@ -1,6 +1,6 @@
 "use client";
 
-import { collection, doc, onSnapshot, updateDoc } from "firebase/firestore";
+import { collection, doc, onSnapshot, updateDoc, runTransaction } from "firebase/firestore";
 import { useEffect, useState } from "react";
 import { db } from "../api/firebase";
 
@@ -11,14 +11,17 @@ const LinkSurveyToInvestigators = () => {
     investigators?: string[];
     // Add other properties if needed
   }
-  
+
   const [surveys, setSurveys] = useState<Survey[]>([]);
   interface Investigator {
     id: string;
     name: string;
-    // Add other properties if needed
+    email: string;
+    location: string;
+    completed: number;
+    active: number;
   }
-  
+
   const [investigators, setInvestigators] = useState<Investigator[]>([]);
   const [selectedSurveyId, setSelectedSurveyId] = useState<string | null>(null);
   const [selectedInvestigators, setSelectedInvestigators] = useState<string[]>(
@@ -51,7 +54,10 @@ const LinkSurveyToInvestigators = () => {
           return {
             id: doc.id,
             name: data.name,
-            // Add other properties if needed
+            email: data.email,
+            location: data.location,
+            completed: data.completed,
+            active: data.active,
           };
         });
         setInvestigators(fetchedInvestigators);
@@ -82,10 +88,30 @@ const LinkSurveyToInvestigators = () => {
     if (!selectedSurveyId) return;
 
     try {
-      await updateDoc(doc(db, "surveys", selectedSurveyId), {
-        investigators: selectedInvestigators,
+      await runTransaction(db, async (transaction) => {
+        // Update the survey
+        const surveyRef = doc(db, "surveys", selectedSurveyId);
+        transaction.update(surveyRef, {
+          investigators: selectedInvestigators,
+        });
+
+        // Increment the "active" key for the selected investigators
+        const incrementedIds = new Set(selectedInvestigators); // To avoid duplicate increments
+        for (const investigatorId of selectedInvestigators) {
+          const investigatorRef = doc(db, "investigators", investigatorId);
+          const investigatorDoc = await transaction.get(investigatorRef);
+
+          if (investigatorDoc.exists()) {
+            const currentActive = investigatorDoc.data().active || 0;
+            if (!incrementedIds.has(investigatorId)) {
+              incrementedIds.add(investigatorId);
+              transaction.update(investigatorRef, { active: currentActive + 1 });
+            }
+          }
+        }
       });
-      alert("Associations mises à jour avec succès !");
+
+      alert("Associations mises à jour avec succès et clés actives incrémentées !");
     } catch (error) {
       console.error("Erreur lors de la mise à jour :", error);
     }
