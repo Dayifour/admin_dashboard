@@ -5,6 +5,7 @@ import {
   collection,
   deleteDoc,
   doc,
+  getDoc,
   onSnapshot,
   updateDoc,
 } from "firebase/firestore";
@@ -110,9 +111,50 @@ const Page = () => {
     newStatus: "Pending" | "Active" | "Completed"
   ) => {
     try {
-      await updateDoc(doc(db, "surveys", id), { status: newStatus });
+      // Récupérer l'enquête pour obtenir les enquêteurs liés
+      const surveyRef = doc(db, "surveys", id);
+      const surveyDoc = await getDoc(surveyRef);
+
+      if (!surveyDoc.exists()) {
+        console.error("Enquête introuvable !");
+        return;
+      }
+
+      const surveyData = surveyDoc.data();
+      const linkedInvestigators = surveyData.investigators || []; // Liste des enquêteurs liés
+
+      // Mettre à jour le statut de l'enquête
+      await updateDoc(surveyRef, { status: newStatus });
+
+      // Modifier les clés "completed" et "active" pour les enquêteurs
+      for (const investigatorId of linkedInvestigators) {
+        const investigatorRef = doc(db, "investigators", investigatorId);
+        const investigatorDoc = await getDoc(investigatorRef);
+
+        if (investigatorDoc.exists()) {
+          const currentData = investigatorDoc.data();
+          const currentCompleted = currentData.completed || 0;
+          const currentActive = currentData.active || 0;
+
+          if (newStatus === "Completed") {
+            // Incrémenter "completed" et décrémenter "active"
+            await updateDoc(investigatorRef, {
+              completed: currentCompleted + 1,
+              active: Math.max(0, currentActive - 1), // Évite des valeurs négatives
+            });
+          } else if (newStatus === "Active") {
+            // Décrémenter "completed" et incrémenter "active"
+            await updateDoc(investigatorRef, {
+              completed: Math.max(0, currentCompleted - 1), // Évite des valeurs négatives
+              active: currentActive + 1,
+            });
+          }
+        }
+      }
+
+      alert("Le statut et les enquêteurs ont été mis à jour avec succès !");
     } catch (error) {
-      console.error("Error updating survey status:", error);
+      console.error("Erreur lors de la mise à jour du statut :", error);
     }
   };
 
@@ -144,11 +186,12 @@ const Page = () => {
           <thead className="bg-gray-100 border-b">
             <tr>
               {[
-                "Title",
+                "Titre",
                 "Description",
-                "Start Date",
-                "End Date",
+                "Date de Début",
+                "Date de Fin",
                 "Status",
+                "Changer le Statut",
                 "Actions",
               ].map((header) => (
                 <th
@@ -181,7 +224,7 @@ const Page = () => {
                 <td className="py-3 px-4 text-gray-800 text-sm">
                   {survey.status}
                 </td>
-                <td className="py-3 px-4 flex gap-2">
+                <td className="py-3 px-4 text-gray-800 text-sm">
                   <button
                     onClick={() => handleStatusChange(survey.id, "Active")}
                     className="text-green-500 hover:underline"
@@ -194,6 +237,8 @@ const Page = () => {
                   >
                     Compléter
                   </button>
+                </td>
+                <td className="py-3 px-4 flex gap-2">
                   <Image
                     src="/pencil.png"
                     alt="Edit"

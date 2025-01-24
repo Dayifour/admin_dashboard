@@ -24,6 +24,7 @@ const Page = () => {
     name: string;
     email: string;
     location: string;
+    phone: number | null;
     completed: number;
     active: number;
   }
@@ -35,6 +36,7 @@ const Page = () => {
   const nameRef = useRef<HTMLInputElement>(null);
   const emailRef = useRef<HTMLInputElement>(null);
   const locationRef = useRef<HTMLInputElement>(null);
+  const phoneRef = useRef<HTMLInputElement>(null);
 
   // Récupérer les enquêteurs en temps réel depuis Firestore
   useEffect(() => {
@@ -48,6 +50,7 @@ const Page = () => {
             name: data.name,
             email: data.email,
             location: data.location,
+            phone: data.phone,
             completed: data.completed,
             active: data.active,
           };
@@ -75,6 +78,7 @@ const Page = () => {
       name: nameRef.current?.value || "",
       email: emailRef.current?.value || "",
       location: locationRef.current?.value || "",
+      phone: parseInt(phoneRef.current?.value || "0"),
       completed: 0, // Par défaut
       active: 0, // Par défaut
     };
@@ -103,6 +107,8 @@ const Page = () => {
     if (nameRef.current) nameRef.current.value = investigator.name;
     if (emailRef.current) emailRef.current.value = investigator.email;
     if (locationRef.current) locationRef.current.value = investigator.location;
+    if (phoneRef.current)
+      phoneRef.current.value = investigator.phone ? investigator.phone.toString() : "";
   };
 
   // Supprimer un enquêteur
@@ -152,6 +158,9 @@ const Page = () => {
               <th className="text-left py-3 px-4 text-sm font-medium text-gray-600">
                 Localisation
               </th>
+              <th className="text-left py-3 px-4 text-sm font-medium text-gray-600">
+                Tel
+              </th>
 
               <th className="text-left py-3 px-4 text-sm font-medium text-gray-600">
                 Completed
@@ -178,6 +187,9 @@ const Page = () => {
                 </td>
                 <td className="py-3 px-4 text-gray-800 text-sm">
                   {investigator.location}
+                </td>
+                <td className="py-3 px-4 text-gray-800 text-sm">
+                  {investigator.phone}
                 </td>
                 <td className="py-3 px-4 text-gray-800 text-sm">
                   {investigator.completed}
@@ -248,6 +260,15 @@ const Page = () => {
                   type="text"
                   placeholder="Entrez une localisation"
                   ref={locationRef}
+                  className="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500"
+                />
+              </div>
+              <div className="mb-4">
+                <label className="block text-gray-700 mb-2">Phone :</label>
+                <input
+                  type="number"
+                  placeholder="Entrez une localisation"
+                  ref={phoneRef}
                   className="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500"
                 />
               </div>

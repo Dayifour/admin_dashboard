@@ -1,6 +1,11 @@
 "use client";
 
-import { collection, doc, onSnapshot, updateDoc, runTransaction } from "firebase/firestore";
+import {
+  collection,
+  doc,
+  onSnapshot,
+  runTransaction,
+} from "firebase/firestore";
 import { useEffect, useState } from "react";
 import { db } from "../api/firebase";
 
@@ -9,7 +14,6 @@ const LinkSurveyToInvestigators = () => {
     id: string;
     title: string;
     investigators?: string[];
-    // Add other properties if needed
   }
 
   const [surveys, setSurveys] = useState<Survey[]>([]);
@@ -86,36 +90,45 @@ const LinkSurveyToInvestigators = () => {
 
   const handleSave = async () => {
     if (!selectedSurveyId) return;
-
+  
     try {
       await runTransaction(db, async (transaction) => {
-        // Update the survey
+        // Lecture de tous les enquêteurs sélectionnés
+        const investigatorsToUpdate = await Promise.all(
+          selectedInvestigators.map(async (investigatorId) => {
+            const investigatorRef = doc(db, "investigators", investigatorId);
+            const investigatorDoc = await transaction.get(investigatorRef);
+            return investigatorDoc.exists()
+              ? { id: investigatorId, ref: investigatorRef, active: investigatorDoc.data().active || 0 }
+              : null;
+          })
+        );
+  
+        // Mise à jour des enquêteurs valides
+        const validInvestigators = investigatorsToUpdate.filter(Boolean);
+  
+        // Mise à jour de l'enquête
         const surveyRef = doc(db, "surveys", selectedSurveyId);
         transaction.update(surveyRef, {
           investigators: selectedInvestigators,
         });
-
-        // Increment the "active" key for the selected investigators
-        const incrementedIds = new Set(selectedInvestigators); // To avoid duplicate increments
-        for (const investigatorId of selectedInvestigators) {
-          const investigatorRef = doc(db, "investigators", investigatorId);
-          const investigatorDoc = await transaction.get(investigatorRef);
-
-          if (investigatorDoc.exists()) {
-            const currentActive = investigatorDoc.data().active || 0;
-            if (!incrementedIds.has(investigatorId)) {
-              incrementedIds.add(investigatorId);
-              transaction.update(investigatorRef, { active: currentActive + 1 });
-            }
+  
+        // Mise à jour des clés "active" pour les enquêteurs
+        validInvestigators.forEach((investigator) => {
+          if (investigator) {
+            transaction.update(investigator.ref, {
+              active: investigator.active + 1,
+            });
           }
-        }
+        });
       });
-
+  
       alert("Associations mises à jour avec succès et clés actives incrémentées !");
     } catch (error) {
       console.error("Erreur lors de la mise à jour :", error);
     }
   };
+  
 
   return (
     <div className="mx-8 h-full flex flex-col justify-center">
