@@ -66,7 +66,9 @@ const Page = () => {
   };
 
   // Soumettre un enquêteur (ajout ou modification)
-  const handleSubmitInvestigator = async (e: { preventDefault: () => void }) => {
+  const handleSubmitInvestigator = async (e: {
+    preventDefault: () => void;
+  }) => {
     e.preventDefault();
 
     const investigatorData = {
@@ -109,8 +111,10 @@ const Page = () => {
   };
 
   // Filtrer les enquêteurs en fonction du terme de recherche
-  const filteredInvestigators = investigators.filter((investigator: any) =>
-    investigator.name.toLowerCase().includes(searchTerm.toLowerCase())
+  const filteredInvestigators = investigators.filter(
+    (investigator: any) =>
+      investigator.name &&
+      investigator.name.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
   return (
@@ -148,6 +152,13 @@ const Page = () => {
               <th className="text-left py-3 px-4 text-sm font-medium text-gray-600">
                 Localisation
               </th>
+
+              <th className="text-left py-3 px-4 text-sm font-medium text-gray-600">
+                Completed
+              </th>
+              <th className="text-left py-3 px-4 text-sm font-medium text-gray-600">
+                Active
+              </th>
               <th className="text-left py-3 px-4 text-sm font-medium text-gray-600">
                 Actions
               </th>
@@ -167,6 +178,12 @@ const Page = () => {
                 </td>
                 <td className="py-3 px-4 text-gray-800 text-sm">
                   {investigator.location}
+                </td>
+                <td className="py-3 px-4 text-gray-800 text-sm">
+                  {investigator.completed}
+                </td>
+                <td className="py-3 px-4 text-gray-800 text-sm">
+                  {investigator.active}
                 </td>
                 <td className="py-3 px-4 flex gap-2">
                   <Image
