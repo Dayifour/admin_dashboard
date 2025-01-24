@@ -8,6 +8,7 @@ const LinkSurveyToInvestigators = () => {
   interface Survey {
     id: string;
     title: string;
+    investigators?: string[];
     // Add other properties if needed
   }
   
@@ -29,10 +30,14 @@ const LinkSurveyToInvestigators = () => {
     const unsubscribeSurveys = onSnapshot(
       collection(db, "surveys"),
       (snapshot) => {
-        const fetchedSurveys = snapshot.docs.map((doc) => ({
-          id: doc.id,
-          ...doc.data(),
-        }));
+        const fetchedSurveys = snapshot.docs.map((doc) => {
+          const data = doc.data();
+          return {
+            id: doc.id,
+            title: data.title,
+            investigators: data.investigators || [],
+          };
+        });
         setSurveys(fetchedSurveys);
       }
     );
