@@ -27,6 +27,11 @@ const links = [
     path: "/liaison",
     image: "/liaison.png",
   },
+  {
+    title: "Questions",
+    path: "/questions",
+    image: "/question.png",
+  },
 ];
 const Links = () => {
   return (
