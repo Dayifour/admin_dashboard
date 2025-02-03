@@ -4,11 +4,12 @@ import Card from "@/components/card/Card";
 import SurveyTable from "@/components/surveyTable/SurveyTable";
 import { collection, getDocs } from "firebase/firestore";
 import { useEffect, useState } from "react";
-import { db } from "./api/firebase"; // Remplacez par votre configuration Firebase
+import { db } from "./api/firebase"; // Assurez-vous d'importer correctement votre configuration Firebase
 
 const Page = () => {
   const [totalAdmins, setTotalAdmins] = useState(0);
   const [totalSurveys, setTotalSurveys] = useState(0);
+  const [totalClosedSurveys, setTotalClosedSurveys] = useState(0);
 
   useEffect(() => {
     // Récupérer le nombre total d'administrateurs
@@ -17,10 +18,14 @@ const Page = () => {
       setTotalAdmins(adminsSnapshot.size);
     };
 
-    // Récupérer le nombre total d'enquêtes
+    // Récupérer le nombre total d'enquêtes et le nombre d'enquêtes terminées
     const fetchSurveys = async () => {
       const surveysSnapshot = await getDocs(collection(db, "surveys"));
-      setTotalSurveys(surveysSnapshot.size);
+      const surveys = surveysSnapshot.docs.map((doc) => doc.data());
+      setTotalSurveys(surveys.length);
+      setTotalClosedSurveys(
+        surveys.filter((survey) => survey.status === "Closed").length
+      );
     };
 
     // Charger les données
@@ -34,20 +39,20 @@ const Page = () => {
       <div className="flex gap-5">
         <Card
           img="/usercolor.png"
-          text="Total Admins"
+          text="Total Enquêteurs"
           number={totalAdmins.toString()}
           color="text-blue-500"
         />
         <Card
           img="/research.png"
           text="Enquêtes en cours"
-          number={totalSurveys.toString()}
+          number={(totalSurveys - totalClosedSurveys).toString()}
           color="text-green-500"
         />
         <Card
           img="/checked.png"
           text="Enquêtes terminées"
-          number="0"
+          number={totalClosedSurveys.toString()}
           color="text-orange-400"
         />
       </div>

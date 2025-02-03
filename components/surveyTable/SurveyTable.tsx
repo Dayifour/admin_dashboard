@@ -1,30 +1,39 @@
-const SurveyTable = () => {
-  // Données locales pour la table
-  const surveys = [
-    {
-      title: "Customer Satisfaction",
-      description: "Annual customer feedback survey",
-      startDate: "2024-01-01",
-      endDate: "2024-01-31",
-      status: "Active",
-    },
-    {
-      title: "Employee Engagement",
-      description: "Quarterly employee feedback survey",
-      startDate: "2024-02-01",
-      endDate: "2024-02-28",
-      status: "Pending",
-    },
-    {
-      title: "Market Trends",
-      description: "Research on current market trends",
-      startDate: "2023-12-01",
-      endDate: "2023-12-31",
-      status: "Closed",
-    },
-  ];
+import { collection, getDocs } from "firebase/firestore";
+import { useEffect, useState } from "react";
+import { db } from "@/app/api/firebase"; // Assurez-vous d'importer correctement votre configuration Firebase
 
-  // Fonction pour obtenir les classes CSS en fonction du status
+const SurveyTable = () => {
+  interface Survey {
+    id: string;
+    title: string;
+    description: string;
+    startDate: string;
+    endDate: string;
+    status: string;
+  }
+
+  const [surveys, setSurveys] = useState<Survey[]>([]);
+
+  useEffect(() => {
+    const fetchSurveys = async () => {
+      const querySnapshot = await getDocs(collection(db, "surveys"));
+      const surveyList = querySnapshot.docs.map((doc) => {
+        const data = doc.data();
+        return {
+          id: doc.id,
+          title: data.title,
+          description: data.description,
+          startDate: data.startDate,
+          endDate: data.endDate,
+          status: data.status,
+        };
+      });
+      setSurveys(surveyList);
+    };
+
+    fetchSurveys();
+  }, []);
+
   const getStatusClasses = (status: string): string => {
     switch (status) {
       case "Active":
@@ -63,9 +72,9 @@ const SurveyTable = () => {
             </tr>
           </thead>
           <tbody>
-            {surveys.map((survey, index) => (
+            {surveys.map((survey) => (
               <tr
-                key={index}
+                key={survey.id}
                 className="border-b hover:bg-gray-300 transition-colors"
               >
                 <td className="py-2 px-4 text-gray-800">{survey.title}</td>
