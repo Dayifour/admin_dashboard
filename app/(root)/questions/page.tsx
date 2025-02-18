@@ -11,7 +11,7 @@ import {
   updateDoc,
 } from "firebase/firestore";
 import { useEffect, useRef, useState } from "react";
-import { db } from "../api/firebase";
+import { db } from "../../api/firebase";
 
 interface Question {
   id: string;

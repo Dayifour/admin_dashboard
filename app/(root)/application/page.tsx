@@ -2,7 +2,7 @@
 
 import { addDoc, collection } from "firebase/firestore";
 import { useState } from "react";
-import { db } from "../api/firebase";
+import { db } from "../../api/firebase";
 
 const InvestigatorApplication = () => {
   const [surveyId, setSurveyId] = useState("");

@@ -29,15 +29,7 @@ export default function RootLayout({
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}
       >
-        <div className="flex flex-row">
-          <div className="w-[300px]">
-            <Sidebar />
-          </div>
-          <div className="w-full h-screen overflow-scroll flex flex-col min-h-screen overflow-x-hidden">
-            {children}
-            <Footer />
-          </div>
-        </div>
+      {children}
       </body>
     </html>
   );
