@@ -8,7 +8,7 @@ import {
   updateDoc,
 } from "firebase/firestore";
 import { useEffect, useState } from "react";
-import { db } from "../api/firebase";
+import { db } from "../../api/firebase";
 
 const AdminApplications = () => {
   const [applications, setApplications] = useState<any[]>([]);

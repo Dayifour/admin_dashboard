@@ -7,7 +7,7 @@ import {
   runTransaction,
 } from "firebase/firestore";
 import { useEffect, useState } from "react";
-import { db } from "../api/firebase";
+import { db } from "../../api/firebase";
 
 const LinkSurveyToInvestigators = () => {
   interface Survey {

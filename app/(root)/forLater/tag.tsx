@@ -4,7 +4,7 @@ import Card from "@/components/card/Card";
 import SurveyTable from "@/components/surveyTable/SurveyTable";
 import { collection, getDocs, query, where } from "firebase/firestore";
 import { useEffect, useState } from "react";
-import { db } from "../api/firebase"; // Remplacez par votre configuration Firebase
+import { db } from "../../api/firebase"; // Remplacez par votre configuration Firebase
 
 const Page = () => {
   const [totalUsers, setTotalUsers] = useState(0);

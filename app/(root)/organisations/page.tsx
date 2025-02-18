@@ -10,7 +10,7 @@ import {
 } from "firebase/firestore";
 import Image from "next/image";
 import { useEffect, useRef, useState } from "react";
-import { db } from "../api/firebase"; // Remplacez par votre configuration Firebase
+import { db } from "../../api/firebase"; // Remplacez par votre configuration Firebase
 
 const Page = () => {
   const [isOpen, setIsOpen] = useState(false);
