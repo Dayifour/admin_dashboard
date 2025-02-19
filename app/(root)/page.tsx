@@ -4,7 +4,7 @@ import Card from "@/components/card/Card";
 import SurveyTable from "@/components/surveyTable/SurveyTable";
 import { collection, getDocs } from "firebase/firestore";
 import { useEffect, useState } from "react";
-import { db } from "./api/firebase"; // Assurez-vous d'importer correctement votre configuration Firebase
+import { db } from "../api/firebase"; // Assurez-vous d'importer correctement votre configuration Firebase
 
 const Page = () => {
   const [totalAdmins, setTotalAdmins] = useState(0);
