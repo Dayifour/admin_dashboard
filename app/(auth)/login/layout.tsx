@@ -11,13 +11,13 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   const router = useRouter();
-  const [loading, setLoading] = useState(true);
   const [user, setUser] = useState<User | null>(null);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, (authUser) => {
       if (!authUser) {
-        router.push("/auth/login"); // Redirige immédiatement vers login si non connecté
+        router.replace("/login"); // Redirige immédiatement
       } else {
         setUser(authUser);
       }
@@ -27,11 +27,15 @@ export default function RootLayout({
     return () => unsubscribe();
   }, [router]);
 
+  // Tant que Firebase charge, afficher une page de chargement
   if (loading) {
-    return <p>Chargement...</p>; // Affiche un message de chargement
+    return (
+      <div className="flex items-center justify-center min-h-screen bg-gray-100">
+        <p className="text-xl font-bold text-gray-600">Chargement...</p>
+      </div>
+    );
   }
 
-  if (!user) return null; // Évite d'afficher le contenu avant redirection
-
+  // Afficher la page seulement si l'utilisateur est connecté
   return <>{children}</>;
 }

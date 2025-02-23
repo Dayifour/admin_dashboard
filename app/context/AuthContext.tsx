@@ -1,13 +1,4 @@
 "use client";
-import React, {
-  createContext,
-  useContext,
-  useEffect,
-  useMemo,
-  useState,
-  ReactNode,
-  useCallback,
-} from "react";
 import { auth } from "@/app/api/firebase";
 import {
   onAuthStateChanged,
@@ -15,6 +6,14 @@ import {
   signOut,
   User,
 } from "firebase/auth";
+import {
+  createContext,
+  ReactNode,
+  useCallback,
+  useContext,
+  useEffect,
+  useState,
+} from "react";
 
 interface AuthContextType {
   user: User | null;
@@ -35,7 +34,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
       setUser(currentUser);
-      setLoading(false);
+      setLoading(false); // Arrêter le chargement après vérification de l'utilisateur
     });
 
     return () => unsubscribe();
@@ -70,21 +69,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   }, []);
 
-  const contextValue = useMemo(
-    () => ({
-      user,
-      login,
-      logout,
-      loading,
-      isAuthenticated: !!user,
-      error,
-    }),
-    [user, loading, error, login, logout]
-  );
-
   return (
-    <AuthContext.Provider value={contextValue}>
-      {loading ? <p>Chargement en cours...</p> : children}
+    <AuthContext.Provider
+      value={{
+        user,
+        login,
+        logout,
+        loading,
+        isAuthenticated: !!user,
+        error,
+      }}
+    >
+      {children}
     </AuthContext.Provider>
   );
 }
