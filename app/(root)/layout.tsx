@@ -9,10 +9,10 @@ interface LayoutProps {
 const Layout: React.FC<LayoutProps> = ({ children }) => {
   return (
     <div className="flex flex-row h-screen">
-      <div className="w-[300px]">
+      <div className="w-[300px] sticky top-0 h-screen">
         <Sidebar />
       </div>
-      <div className="w-full h-screen overflow-scroll flex flex-col min-h-screen overflow-x-hidden">
+      <div className="w-full overflow-scroll flex flex-col overflow-x-hidden">
         {children}
         <Footer />
       </div>
